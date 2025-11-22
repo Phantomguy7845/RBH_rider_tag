@@ -2,34 +2,34 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <title>Robinhood Rider Tracker</title>
+  <title>Rider Tracker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- สไตล์ง่ายๆ โทนดาร์ก -->
+  <!-- สไตล์โทนดาร์ก -->
   <style>
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #06071a;
+      background: #030616;
       color: #f5f5f5;
       display: flex;
       justify-content: center;
       padding: 16px;
     }
     .app-container {
-      max-width: 480px;
+      max-width: 520px;
       width: 100%;
-      background: #11152b;
-      border-radius: 16px;
+      background: #0b1024;
+      border-radius: 20px;
       padding: 16px;
-      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+      box-shadow: 0 0 28px rgba(0,0,0,0.7);
     }
     h1, h2 {
       margin: 0 0 12px 0;
       text-align: center;
     }
     .card {
-      background: #1a1f3a;
-      border-radius: 12px;
+      background: #151a35;
+      border-radius: 14px;
       padding: 12px;
       margin-bottom: 12px;
     }
@@ -39,14 +39,17 @@
       font-size: 0.9rem;
       opacity: 0.9;
     }
-    input[type="number"] {
+    input[type="number"],
+    input[type="date"],
+    select {
       width: 100%;
       padding: 8px;
       border-radius: 8px;
       border: 1px solid #33395f;
-      background: #0b0f24;
+      background: #070b1e;
       color: #f5f5f5;
       box-sizing: border-box;
+      font-size: 0.9rem;
     }
     button {
       width: 100%;
@@ -68,7 +71,7 @@
     }
     .small {
       font-size: 0.8rem;
-      opacity: 0.8;
+      opacity: 0.85;
     }
     .row {
       display: flex;
@@ -95,6 +98,47 @@
       margin-top: 4px;
       min-height: 18px;
     }
+    /* nav tab */
+    .nav-card {
+      display: flex;
+      gap: 8px;
+      padding: 6px;
+      background: #11152b;
+    }
+    .tab-btn {
+      flex: 1;
+      border-radius: 999px;
+      border: none;
+      padding: 8px 4px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: transparent;
+      color: #c5c8ff;
+    }
+    .tab-active {
+      background: linear-gradient(135deg, #ff6b6b, #f7b267);
+      color: #11152b;
+      font-weight: 600;
+    }
+    canvas {
+      background: #0b0f24;
+      border-radius: 8px;
+      padding: 4px;
+    }
+    .pill-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .pill-buttons button {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 0.8rem;
+      border-radius: 999px;
+    }
+    .pill-active {
+      outline: 2px solid #f7b267;
+    }
   </style>
 </head>
 <body>
@@ -109,6 +153,7 @@
 
     <!-- ส่วนแอปหลังล็อกอิน -->
     <div id="app-section" style="display:none;">
+
       <div class="card">
         <div class="row" style="align-items:center;">
           <div>
@@ -121,39 +166,92 @@
         </div>
       </div>
 
-      <div class="card">
-        <h2>บันทึกวันนี้</h2>
-        <div class="small" id="today-text"></div>
-
-        <label>จำนวนงานสำเร็จ (ออเดอร์)</label>
-        <input type="number" id="orders-input" min="0" step="1">
-
-        <div class="row">
-          <div>
-            <label>รายได้รายวัน (00:00 - 24:00)</label>
-            <input type="number" id="daily-income-input" min="0" step="0.01">
-          </div>
-          <div>
-            <label>ยอดตัดรอบ 18:00</label>
-            <input type="number" id="cutoff-income-input" min="0" step="0.01">
-          </div>
-        </div>
-
-        <button id="btn-save" class="btn-primary">บันทึกวันนี้</button>
-        <div id="save-status" class="status"></div>
+      <!-- แถบสลับหน้า -->
+      <div class="card nav-card">
+        <button id="tab-today" class="tab-btn tab-active">บันทึกวันนี้</button>
+        <button id="tab-summary" class="tab-btn">สรุปยอด</button>
       </div>
 
-      <div class="card">
-        <h2>สรุปเดือนนี้</h2>
-        <div class="small" id="month-info"></div>
-        <div class="small">ออเดอร์สำเร็จเดือนนี้: <span id="month-orders">0</span> งาน</div>
+      <!-- TODAY SECTION -->
+      <div id="today-section">
+        <div class="card">
+          <h2>บันทึกวันนี้</h2>
+          <div class="small" id="today-text"></div>
 
-        <div style="margin-top:8px;" class="small">
-          *เกณฑ์แร้งก์จะโหลดจาก config <code>appConfig/ranks</code> ใน Firestore หากมี<br>
-          (ปรับแก้ได้จาก Firebase console)
+          <label>จำนวนงานสำเร็จ (ออเดอร์)</label>
+          <input type="number" id="orders-input" min="0" step="1">
+
+          <div class="row">
+            <div>
+              <label>รายได้รายวัน (00:00 - 24:00)</label>
+              <input type="number" id="daily-income-input" min="0" step="0.01">
+            </div>
+            <div>
+              <label>ยอดตัดรอบ 18:00</label>
+              <input type="number" id="cutoff-income-input" min="0" step="0.01">
+            </div>
+          </div>
+
+          <button id="btn-save" class="btn-primary">บันทึกวันนี้</button>
+          <div id="save-status" class="status"></div>
         </div>
 
-        <div id="rankCards" class="rank-grid" style="margin-top:8px;"></div>
+        <div class="card">
+          <h2>สรุปเดือนนี้ (ออเดอร์)</h2>
+          <div class="small" id="month-info"></div>
+          <div class="small">ออเดอร์สำเร็จเดือนนี้: <span id="month-orders">0</span> งาน</div>
+
+          <div style="margin-top:8px;" class="small">
+            *เกณฑ์แร้งก์จะโหลดจาก config <code>appConfig/ranks</code> ใน Firestore หากมี<br>
+            (ปรับแก้ได้จาก Firebase console)
+          </div>
+
+          <div id="rankCards" class="rank-grid" style="margin-top:8px;"></div>
+        </div>
+      </div>
+
+      <!-- SUMMARY SECTION -->
+      <div id="summary-section" style="display:none;">
+        <div class="card">
+          <h2>สรุปยอด</h2>
+          <div class="small">เลือกช่วงเวลา + ประเภทข้อมูลที่ต้องการดู</div>
+
+          <label style="margin-top:8px;">ประเภทข้อมูล</label>
+          <select id="summary-metric">
+            <option value="dailyIncome">รายได้รายวัน (00:00 - 24:00)</option>
+            <option value="cutoffIncome">ยอดตัดรอบ 18:00</option>
+            <option value="ordersCompleted">จำนวนออเดอร์สำเร็จ</option>
+          </select>
+
+          <div class="pill-buttons">
+            <button class="btn-secondary" data-range="week" id="btn-range-week">สัปดาห์นี้</button>
+            <button class="btn-secondary pill-active" data-range="month" id="btn-range-month">เดือนนี้</button>
+            <button class="btn-secondary" data-range="year" id="btn-range-year">ปีนี้</button>
+          </div>
+
+          <div class="row" style="margin-top:8px;">
+            <div>
+              <label>เริ่มจากวันที่ (Custom)</label>
+              <input type="date" id="summary-start">
+            </div>
+            <div>
+              <label>ถึงวันที่</label>
+              <input type="date" id="summary-end">
+            </div>
+          </div>
+          <button id="btn-summary-apply" class="btn-secondary" style="margin-top:8px;">ใช้ช่วงวันที่ Custom</button>
+
+          <div class="card" style="margin-top:10px;background:#111733;">
+            <div class="small">สรุปรายได้เดือนนี้ (ถึงวันนี้)</div>
+            <div class="small" id="month-summary-text"></div>
+          </div>
+
+          <div style="margin-top:8px;">
+            <canvas id="summary-chart" height="200"></canvas>
+          </div>
+
+          <div class="small" id="summary-stats" style="margin-top:8px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -162,6 +260,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <!-- Chart.js สำหรับกราฟแท่ง -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <script>
     // ===== ใส่ config ของโปรเจกต์คุณตรงนี้ =====
@@ -186,6 +286,11 @@
       knight: 150,
       lord: 350
     };
+
+    // เก็บ daily records ทั้งหมดไว้ใช้ในหน้า Summary
+    let cachedRecords = [];
+    let summaryChart = null;
+    let currentRangeType = "month";
 
     // ===== helpers =====
     function formatDateKey(date) {
@@ -231,7 +336,8 @@
     }
 
     async function saveTodayRecord(uid, dateKey, payload) {
-      const monthKey = getMonthKey(new Date());
+      const now = new Date();
+      const monthKey = getMonthKey(now);
       const ref = db.collection("users").doc(uid)
                     .collection("dailyRecords").doc(dateKey);
       await ref.set({
@@ -251,6 +357,29 @@
         total += Number(data.ordersCompleted || 0);
       });
       return total;
+    }
+
+    async function loadAllRecords(uid) {
+      const col = db.collection("users").doc(uid).collection("dailyRecords");
+      const snap = await col.get();
+      const records = [];
+      snap.forEach(doc => {
+        const data = doc.data();
+        if (!data.date) return;
+        const [y, m, d] = data.date.split("-").map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        records.push({
+          dateKey: data.date,
+          dateObj,
+          month: data.month || getMonthKey(dateObj),
+          ordersCompleted: Number(data.ordersCompleted || 0),
+          dailyIncome: Number(data.dailyIncome || 0),
+          cutoffIncome: Number(data.cutoffIncome || 0)
+        });
+      });
+      records.sort((a, b) => a.dateObj - b.dateObj);
+      cachedRecords = records;
+      return records;
     }
 
     function renderRankCards(ranks, monthOrders) {
@@ -277,18 +406,205 @@
       });
     }
 
-    // ===== UI logic =====
-    const loginSection = document.getElementById("login-section");
-    const appSection   = document.getElementById("app-section");
-    const userEmailEl  = document.getElementById("user-email");
-    const todayTextEl  = document.getElementById("today-text");
-    const monthInfoEl  = document.getElementById("month-info");
-    const monthOrdersEl= document.getElementById("month-orders");
-    const saveStatusEl = document.getElementById("save-status");
+    // ===== SUMMARY helpers =====
+    function getPresetRange(type) {
+      const now = new Date();
+      let start = new Date(now);
+      let end = new Date(now);
 
-    const ordersInput  = document.getElementById("orders-input");
-    const dailyIncomeInput = document.getElementById("daily-income-input");
-    const cutoffIncomeInput = document.getElementById("cutoff-income-input");
+      if (type === "week") {
+        // 7 วันล่าสุด (รวมวันนี้)
+        start.setDate(now.getDate() - 6);
+      } else if (type === "month") {
+        // ตั้งแต่วันแรกของเดือนจนถึงวันนี้
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (type === "year") {
+        // ตั้งแต่ 1 ม.ค. ของปีนี้
+        start = new Date(now.getFullYear(), 0, 1);
+      }
+      return { start, end };
+    }
+
+    function filterRecordsByRange(rangeType, customStartStr, customEndStr) {
+      if (!cachedRecords.length) return [];
+
+      let startDate, endDate;
+      const now = new Date();
+
+      if (rangeType === "custom") {
+        if (!customStartStr || !customEndStr) return [];
+        startDate = new Date(customStartStr);
+        endDate   = new Date(customEndStr);
+      } else {
+        const { start, end } = getPresetRange(rangeType);
+        startDate = start;
+        endDate = end;
+      }
+
+      // normalize 00:00 และ 23:59
+      startDate.setHours(0,0,0,0);
+      endDate.setHours(23,59,59,999);
+
+      const startKey = formatDateKey(startDate);
+      const endKey   = formatDateKey(endDate);
+
+      return cachedRecords.filter(r => r.dateKey >= startKey && r.dateKey <= endKey);
+    }
+
+    function buildSummaryStats(records, metric) {
+      let totalMetric = 0;
+      let totalOrders = 0;
+      records.forEach(r => {
+        totalMetric += Number(r[metric] || 0);
+        totalOrders += Number(r.ordersCompleted || 0);
+      });
+      const days = records.length;
+      const avgMetric = days ? totalMetric / days : 0;
+      return { totalMetric, totalOrders, days, avgMetric };
+    }
+
+    function computeMonthToDateSummary() {
+      if (!cachedRecords.length) return null;
+      const now = new Date();
+      const monthKey = getMonthKey(now);
+      const list = cachedRecords.filter(r => r.month === monthKey);
+      if (!list.length) return null;
+
+      let sumDaily = 0, sumCutoff = 0, sumOrders = 0;
+      list.forEach(r => {
+        sumDaily  += r.dailyIncome || 0;
+        sumCutoff += r.cutoffIncome || 0;
+        sumOrders += r.ordersCompleted || 0;
+      });
+      return {
+        monthKey,
+        sumDaily,
+        sumCutoff,
+        sumOrders,
+        days: list.length,
+        lastDate: list[list.length - 1].dateObj
+      };
+    }
+
+    function metricLabel(metric) {
+      if (metric === "dailyIncome") return "รายได้รายวัน (00-24)";
+      if (metric === "cutoffIncome") return "ยอดตัดรอบ 18:00";
+      if (metric === "ordersCompleted") return "จำนวนออเดอร์สำเร็จ";
+      return metric;
+    }
+
+    function renderSummaryStats(stats, metric, records) {
+      const el = document.getElementById("summary-stats");
+      if (!records.length) {
+        el.textContent = "ยังไม่มีข้อมูลในช่วงเวลาที่เลือก";
+        return;
+      }
+      const unit = (metric === "ordersCompleted") ? "งาน" : "บาท";
+      el.innerHTML =
+        `จำนวนวัน: ${stats.days} วัน | ` +
+        `ยอดรวม: ${stats.totalMetric.toFixed(2)} ${unit} | ` +
+        `เฉลี่ยต่อวัน: ${stats.avgMetric.toFixed(2)} ${unit} | ` +
+        `ออเดอร์รวม: ${stats.totalOrders} งาน`;
+    }
+
+    function renderMonthSummaryBox() {
+      const info = computeMonthToDateSummary();
+      const el = document.getElementById("month-summary-text");
+      if (!info) {
+        el.textContent = "ยังไม่มีการบันทึกในเดือนนี้";
+        return;
+      }
+      const last = info.lastDate ? formatThaiDate(info.lastDate) : "";
+      el.innerHTML =
+        `เดือน: ${info.monthKey} | ถึงวันที่: ${last}<br>` +
+        `รายได้รวม (00-24): ${info.sumDaily.toFixed(2)} บาท | ` +
+        `ยอดตัดรอบรวม: ${info.sumCutoff.toFixed(2)} บาท | ` +
+        `ออเดอร์รวม: ${info.sumOrders} งาน`;
+    }
+
+    function updateSummaryChart(records, metric) {
+      const ctx = document.getElementById("summary-chart").getContext("2d");
+      const labels = records.map(r => {
+        const d = r.dateObj;
+        return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+      });
+      const dataVals = records.map(r => Number(r[metric] || 0));
+
+      if (summaryChart) {
+        summaryChart.destroy();
+      }
+
+      summaryChart = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: metricLabel(metric),
+            data: dataVals
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: { color: "#c5c8ff", font: { size: 10 } }
+            },
+            y: {
+              ticks: { color: "#c5c8ff" }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: { color: "#f5f5f5" }
+            }
+          }
+        }
+      });
+    }
+
+    function applySummary(rangeType) {
+      currentRangeType = rangeType;
+      const metric = document.getElementById("summary-metric").value;
+      const startStr = document.getElementById("summary-start").value;
+      const endStr   = document.getElementById("summary-end").value;
+
+      const records = (rangeType === "custom")
+        ? filterRecordsByRange("custom", startStr, endStr)
+        : filterRecordsByRange(rangeType);
+
+      updateSummaryChart(records, metric);
+      const stats = buildSummaryStats(records, metric);
+      renderSummaryStats(stats, metric, records);
+      renderMonthSummaryBox();
+    }
+
+    function highlightRangeButton(activeId) {
+      ["btn-range-week", "btn-range-month", "btn-range-year"].forEach(id => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.classList.remove("pill-active");
+        if (id === activeId) btn.classList.add("pill-active");
+      });
+    }
+
+    // ===== UI logic =====
+    const loginSection    = document.getElementById("login-section");
+    const appSection      = document.getElementById("app-section");
+    const userEmailEl     = document.getElementById("user-email");
+    const todayTextEl     = document.getElementById("today-text");
+    const monthInfoEl     = document.getElementById("month-info");
+    const monthOrdersEl   = document.getElementById("month-orders");
+    const saveStatusEl    = document.getElementById("save-status");
+
+    const ordersInput         = document.getElementById("orders-input");
+    const dailyIncomeInput    = document.getElementById("daily-income-input");
+    const cutoffIncomeInput   = document.getElementById("cutoff-income-input");
+
+    const todaySection    = document.getElementById("today-section");
+    const summarySection  = document.getElementById("summary-section");
+    const tabToday        = document.getElementById("tab-today");
+    const tabSummary      = document.getElementById("tab-summary");
 
     document.getElementById("btn-login").addEventListener("click", () => {
       const provider = new firebase.auth.GoogleAuthProvider();
@@ -319,10 +635,57 @@
         await saveTodayRecord(user.uid, dateKey, payload);
         saveStatusEl.textContent = "บันทึกสำเร็จ ✅";
         await refreshMonthSummary(user);
+        await loadAllRecords(user.uid);      // รีโหลดข้อมูลทั้งหมด
+        applySummary(currentRangeType);      // อัปเดตกราฟถ้าผู้ใช้เปิดหน้า Summary อยู่
       } catch (e) {
         console.error(e);
         saveStatusEl.textContent = "บันทึกไม่สำเร็จ: " + e.message;
       }
+    });
+
+    tabToday.addEventListener("click", () => {
+      tabToday.classList.add("tab-active");
+      tabSummary.classList.remove("tab-active");
+      todaySection.style.display = "block";
+      summarySection.style.display = "none";
+    });
+
+    tabSummary.addEventListener("click", async () => {
+      tabSummary.classList.add("tab-active");
+      tabToday.classList.remove("tab-active");
+      todaySection.style.display = "none";
+      summarySection.style.display = "block";
+
+      const user = auth.currentUser;
+      if (!user) return;
+      if (!cachedRecords.length) {
+        await loadAllRecords(user.uid);
+      }
+      highlightRangeButton("btn-range-month");
+      applySummary("month");
+    });
+
+    document.getElementById("summary-metric").addEventListener("change", () => {
+      applySummary(currentRangeType);
+    });
+
+    document.getElementById("btn-range-week").addEventListener("click", () => {
+      highlightRangeButton("btn-range-week");
+      applySummary("week");
+    });
+    document.getElementById("btn-range-month").addEventListener("click", () => {
+      highlightRangeButton("btn-range-month");
+      applySummary("month");
+    });
+    document.getElementById("btn-range-year").addEventListener("click", () => {
+      highlightRangeButton("btn-range-year");
+      applySummary("year");
+    });
+
+    document.getElementById("btn-summary-apply").addEventListener("click", () => {
+      currentRangeType = "custom";
+      highlightRangeButton(""); // ไม่เน้นปุ่ม preset
+      applySummary("custom");
     });
 
     async function refreshToday(user) {
@@ -363,6 +726,8 @@
 
         await refreshToday(user);
         await refreshMonthSummary(user);
+        await loadAllRecords(user.uid);
+        renderMonthSummaryBox();
       } else {
         loginSection.style.display = "block";
         appSection.style.display   = "none";
