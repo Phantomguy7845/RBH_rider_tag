@@ -60,9 +60,9 @@
       width: 100%;
       padding: 8px;
       border-radius: 10px;
-      border: 1px solid #34395d;
-      background: #050818;
-      color: #f5f5f5;
+      border: 1px solid #d0d3e6;
+      background: #ffffff;         /* ช่องกรอก & วันที่เป็นสีขาว */
+      color: #11152b;              /* ตัวหนังสือเข้มอ่านง่าย */
       font-size: 0.9rem;
     }
     input[type="number"]:focus,
@@ -259,16 +259,19 @@
                 <div class="rank-title">Hero</div>
                 <div class="small" id="hero-target"></div>
                 <div class="small" id="hero-remaining"></div>
+                <div class="small" id="hero-daily"></div>
               </div>
               <div class="rank-card rank-knight">
                 <div class="rank-title">Knight</div>
                 <div class="small" id="knight-target"></div>
                 <div class="small" id="knight-remaining"></div>
+                <div class="small" id="knight-daily"></div>
               </div>
               <div class="rank-card rank-lord">
                 <div class="rank-title">Lord</div>
                 <div class="small" id="lord-target"></div>
                 <div class="small" id="lord-remaining"></div>
+                <div class="small" id="lord-daily"></div>
               </div>
             </div>
           </div>
@@ -433,25 +436,45 @@
       return records;
     }
 
-    // ===== Rank cards =====
+    // ===== Rank cards (รวมเป้าหมายเฉลี่ยต่อวัน) =====
     function renderRankCards(ranks, monthOrders) {
-      const heroTarget = Number(ranks.hero || 0);
-      const knightTarget = Number(ranks.knight || 0);
-      const lordTarget = Number(ranks.lord || 0);
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth();              // 0 = ม.ค.
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const todayDay = today.getDate();
+      let daysLeft = daysInMonth - todayDay + 1;   // รวมวันนี้
+      if (daysLeft < 1) daysLeft = 1;
 
-      document.getElementById("hero-target").textContent =
-        `เป้าหมาย: ${heroTarget} งาน/เดือน`;
-      document.getElementById("knight-target").textContent =
-        `เป้าหมาย: ${knightTarget} งาน/เดือน`;
-      document.getElementById("lord-target").textContent =
-        `เป้าหมาย: ${lordTarget} งาน/เดือน`;
+      function fillRank(prefix, label, targetRaw) {
+        const target = Number(targetRaw || 0);
+        const remaining = Math.max(0, target - monthOrders);
 
-      document.getElementById("hero-remaining").textContent =
-        `ขาดอีก: ${Math.max(0, heroTarget - monthOrders)} งาน`;
-      document.getElementById("knight-remaining").textContent =
-        `ขาดอีก: ${Math.max(0, knightTarget - monthOrders)} งาน`;
-      document.getElementById("lord-remaining").textContent =
-        `ขาดอีก: ${Math.max(0, lordTarget - monthOrders)} งาน`;
+        const targetEl  = document.getElementById(prefix + "-target");
+        const remainEl  = document.getElementById(prefix + "-remaining");
+        const dailyEl   = document.getElementById(prefix + "-daily");
+        if (!targetEl || !remainEl || !dailyEl) return;
+
+        targetEl.textContent = `เป้าหมาย: ${target} งาน/เดือน`;
+
+        if (remaining <= 0) {
+          const over = monthOrders - target;
+          remainEl.textContent = `คุณถึงระดับ ${label} แล้ว! (ออเดอร์สะสม: ${monthOrders} งาน)`;
+          if (over > 0) {
+            dailyEl.textContent = `เกินเป้าแล้ว +${over} งาน`;
+          } else {
+            dailyEl.textContent = `รักษาระดับ ${label} ต่อไปนะ`;
+          }
+        } else {
+          const dailyTarget = Math.ceil(remaining / daysLeft);
+          remainEl.textContent = `ขาดอีก: ${remaining} งาน (เหลือ ${daysLeft} วันในเดือนนี้)`;
+          dailyEl.textContent  = `เป้าหมายเฉลี่ยต่อวัน: ${dailyTarget} งาน/วัน`;
+        }
+      }
+
+      fillRank("hero",   "Hero",   ranks.hero);
+      fillRank("knight", "Knight", ranks.knight);
+      fillRank("lord",   "Lord",   ranks.lord);
     }
 
     // ===== Summary helpers =====
@@ -468,7 +491,7 @@
         end.setDate(start.getDate() + 6);
       } else if (type === "month") {
         start = new Date(now.getFullYear(), now.getMonth(), 1);
-        end   = new Date(now.getFullYear(), now.getMonth() + 1, 0); // วันสุดท้าย
+        end   = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       } else if (type === "year") {
         start = new Date(now.getFullYear(), 0, 1);
         end   = new Date(now.getFullYear(), 11, 31);
@@ -489,7 +512,6 @@
       const series = [];
       if (!cachedRecords.length) return series;
 
-      // Map dateKey -> record
       const map = {};
       cachedRecords.forEach(r => map[r.dateKey] = r);
 
@@ -639,7 +661,6 @@
         return;
       }
 
-      // ปรับช่อง input date ให้ตรงกับช่วงที่เลือก (ยกเว้น custom)
       if (rangeType !== "custom") {
         document.getElementById("summary-start").value = formatDateKey(range.start);
         document.getElementById("summary-end").value   = formatDateKey(range.end);
@@ -678,7 +699,6 @@
 
     document.getElementById("btn-logout").addEventListener("click", () => auth.signOut());
 
-    // บันทึกข้อมูลของวันที่ที่เลือก
     document.getElementById("btn-save").addEventListener("click", async () => {
       const user = auth.currentUser;
       if (!user) return;
@@ -709,7 +729,6 @@
       }
     });
 
-    // เมื่อเปลี่ยนวันที่ -> โหลดข้อมูลเก่ามาแก้ไขได้
     dateInput.addEventListener("change", async () => {
       const user = auth.currentUser;
       if (!user) return;
@@ -755,7 +774,7 @@
 
     document.getElementById("btn-summary-apply").addEventListener("click", () => {
       currentRangeType = "custom";
-      highlightRangeButton(""); // ไม่เน้นปุ่ม preset
+      highlightRangeButton(""); 
       applySummary("custom");
     });
 
@@ -801,7 +820,6 @@
         userEmailEl.textContent = user.email || user.displayName || user.uid;
         saveStatusEl.textContent = "";
 
-        // ตั้งวันที่เริ่มต้นเป็น "วันนี้"
         const today = new Date();
         const todayKey = formatDateKey(today);
         dateInput.value = todayKey;
