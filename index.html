@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Robinhood Rider Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- สไตล์ง่ายๆ โทนดาร์ก -->
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #06071a;
+      color: #f5f5f5;
+      display: flex;
+      justify-content: center;
+      padding: 16px;
+    }
+    .app-container {
+      max-width: 480px;
+      width: 100%;
+      background: #11152b;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+    h1, h2 {
+      margin: 0 0 12px 0;
+      text-align: center;
+    }
+    .card {
+      background: #1a1f3a;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #33395f;
+      background: #0b0f24;
+      color: #f5f5f5;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-top: 8px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #ff6b6b, #f7b267);
+      color: #11152b;
+      font-weight: 600;
+    }
+    .btn-secondary {
+      background: #22284a;
+      color: #f5f5f5;
+    }
+    .small {
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+    }
+    .row > div {
+      flex: 1;
+    }
+    #login-section {
+      text-align: center;
+      margin-top: 40px;
+    }
+    .rank-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .rank-title {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .status {
+      font-size: 0.85rem;
+      margin-top: 4px;
+      min-height: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <h1>Rider Tracker</h1>
+
+    <!-- ส่วนล็อกอิน -->
+    <div id="login-section">
+      <p class="small">กรุณาเข้าสู่ระบบด้วย Google เพื่อบันทึกข้อมูลของคุณ</p>
+      <button id="btn-login" class="btn-primary">Sign in with Google</button>
+    </div>
+
+    <!-- ส่วนแอปหลังล็อกอิน -->
+    <div id="app-section" style="display:none;">
+      <div class="card">
+        <div class="row" style="align-items:center;">
+          <div>
+            <div class="small">เข้าสู่ระบบเป็น</div>
+            <div id="user-email"></div>
+          </div>
+          <div style="text-align:right;">
+            <button id="btn-logout" class="btn-secondary" style="width:auto;padding:6px 12px;font-size:0.8rem;">ออกจากระบบ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>บันทึกวันนี้</h2>
+        <div class="small" id="today-text"></div>
+
+        <label>จำนวนงานสำเร็จ (ออเดอร์)</label>
+        <input type="number" id="orders-input" min="0" step="1">
+
+        <div class="row">
+          <div>
+            <label>รายได้รายวัน (00:00 - 24:00)</label>
+            <input type="number" id="daily-income-input" min="0" step="0.01">
+          </div>
+          <div>
+            <label>ยอดตัดรอบ 18:00</label>
+            <input type="number" id="cutoff-income-input" min="0" step="0.01">
+          </div>
+        </div>
+
+        <button id="btn-save" class="btn-primary">บันทึกวันนี้</button>
+        <div id="save-status" class="status"></div>
+      </div>
+
+      <div class="card">
+        <h2>สรุปเดือนนี้</h2>
+        <div class="small" id="month-info"></div>
+        <div class="small">ออเดอร์สำเร็จเดือนนี้: <span id="month-orders">0</span> งาน</div>
+
+        <div style="margin-top:8px;" class="small">
+          *เกณฑ์แร้งก์จะโหลดจาก config <code>appConfig/ranks</code> ใน Firestore หากมี<br>
+          (ปรับแก้ได้จาก Firebase console)
+        </div>
+
+        <div id="rankCards" class="rank-grid" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // ===== ใส่ config ของโปรเจกต์คุณตรงนี้ =====
+    const firebaseConfig = {
+  apiKey: "AIzaSyCBlaCeUMRlM0o06tTyW_yhnmny5UgLbX4",
+  authDomain: "robinhood-rider-tracker.firebaseapp.com",
+  projectId: "robinhood-rider-tracker",
+  storageBucket: "robinhood-rider-tracker.firebasestorage.app",
+  messagingSenderId: "1008383195308",
+  appId: "1:1008383195308:web:c612dcbc6a34be00de4709",
+  measurementId: "G-0LZ925S6J8"
+    };
+    // ======================================
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // default rank เผื่อหา config ใน DB ไม่เจอ
+    const DEFAULT_RANKS = {
+      hero: 100,
+      knight: 150,
+      lord: 350
+    };
+
+    // ===== helpers =====
+    function formatDateKey(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function getMonthKey(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      return `${y}-${m}`;
+    }
+
+    function formatThaiDate(date) {
+      return date.toLocaleDateString("th-TH", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        weekday: "short"
+      });
+    }
+
+    async function loadRankConfig() {
+      try {
+        const snap = await db.collection("appConfig").doc("ranks").get();
+        if (snap.exists) {
+          const data = snap.data();
+          return { ...DEFAULT_RANKS, ...data };
+        }
+      } catch (e) {
+        console.log("โหลด rank config ไม่สำเร็จ ใช้ค่า default แทน", e);
+      }
+      return DEFAULT_RANKS;
+    }
+
+    async function loadTodayRecord(uid, dateKey) {
+      const ref = db.collection("users").doc(uid)
+                    .collection("dailyRecords").doc(dateKey);
+      const snap = await ref.get();
+      return snap.exists ? snap.data() : null;
+    }
+
+    async function saveTodayRecord(uid, dateKey, payload) {
+      const monthKey = getMonthKey(new Date());
+      const ref = db.collection("users").doc(uid)
+                    .collection("dailyRecords").doc(dateKey);
+      await ref.set({
+        date: dateKey,
+        month: monthKey,
+        ...payload,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+
+    async function loadMonthOrders(uid, monthKey) {
+      const col = db.collection("users").doc(uid).collection("dailyRecords");
+      const snap = await col.where("month", "==", monthKey).get();
+      let total = 0;
+      snap.forEach(doc => {
+        const data = doc.data();
+        total += Number(data.ordersCompleted || 0);
+      });
+      return total;
+    }
+
+    function renderRankCards(ranks, monthOrders) {
+      const container = document.getElementById("rankCards");
+      container.innerHTML = "";
+
+      const rankList = [
+        { key: "hero",   label: "Hero" },
+        { key: "knight", label: "Knight" },
+        { key: "lord",   label: "Lord" }
+      ];
+
+      rankList.forEach(r => {
+        const target = Number(ranks[r.key] || 0);
+        const remaining = Math.max(0, target - monthOrders);
+
+        container.innerHTML += `
+          <div class="card" style="padding:8px;">
+            <div class="rank-title">${r.label}</div>
+            <div class="small">เป้าหมาย: ${target} งาน/เดือน</div>
+            <div class="small">ขาดอีก: ${remaining} งาน</div>
+          </div>
+        `;
+      });
+    }
+
+    // ===== UI logic =====
+    const loginSection = document.getElementById("login-section");
+    const appSection   = document.getElementById("app-section");
+    const userEmailEl  = document.getElementById("user-email");
+    const todayTextEl  = document.getElementById("today-text");
+    const monthInfoEl  = document.getElementById("month-info");
+    const monthOrdersEl= document.getElementById("month-orders");
+    const saveStatusEl = document.getElementById("save-status");
+
+    const ordersInput  = document.getElementById("orders-input");
+    const dailyIncomeInput = document.getElementById("daily-income-input");
+    const cutoffIncomeInput = document.getElementById("cutoff-income-input");
+
+    document.getElementById("btn-login").addEventListener("click", () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch(err => {
+        alert("ล็อกอินไม่สำเร็จ: " + err.message);
+      });
+    });
+
+    document.getElementById("btn-logout").addEventListener("click", () => {
+      auth.signOut();
+    });
+
+    document.getElementById("btn-save").addEventListener("click", async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const date = new Date();
+      const dateKey = formatDateKey(date);
+
+      const payload = {
+        ordersCompleted: Number(ordersInput.value || 0),
+        dailyIncome: Number(dailyIncomeInput.value || 0),
+        cutoffIncome: Number(cutoffIncomeInput.value || 0)
+      };
+
+      saveStatusEl.textContent = "กำลังบันทึก...";
+      try {
+        await saveTodayRecord(user.uid, dateKey, payload);
+        saveStatusEl.textContent = "บันทึกสำเร็จ ✅";
+        await refreshMonthSummary(user);
+      } catch (e) {
+        console.error(e);
+        saveStatusEl.textContent = "บันทึกไม่สำเร็จ: " + e.message;
+      }
+    });
+
+    async function refreshToday(user) {
+      const now = new Date();
+      const dateKey = formatDateKey(now);
+      todayTextEl.textContent = `วันนี้: ${formatThaiDate(now)} (ID: ${dateKey})`;
+
+      const data = await loadTodayRecord(user.uid, dateKey);
+      if (data) {
+        ordersInput.value = data.ordersCompleted ?? "";
+        dailyIncomeInput.value = data.dailyIncome ?? "";
+        cutoffIncomeInput.value = data.cutoffIncome ?? "";
+      } else {
+        ordersInput.value = "";
+        dailyIncomeInput.value = "";
+        cutoffIncomeInput.value = "";
+      }
+    }
+
+    async function refreshMonthSummary(user) {
+      const now = new Date();
+      const monthKey = getMonthKey(now);
+      monthInfoEl.textContent = `เดือนปัจจุบัน: ${monthKey}`;
+      const [ranks, totalOrders] = await Promise.all([
+        loadRankConfig(),
+        loadMonthOrders(user.uid, monthKey)
+      ]);
+      monthOrdersEl.textContent = totalOrders;
+      renderRankCards(ranks, totalOrders);
+    }
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        loginSection.style.display = "none";
+        appSection.style.display   = "block";
+        userEmailEl.textContent = user.email || user.displayName || user.uid;
+        saveStatusEl.textContent = "";
+
+        await refreshToday(user);
+        await refreshMonthSummary(user);
+      } else {
+        loginSection.style.display = "block";
+        appSection.style.display   = "none";
+      }
+    });
+  </script>
+</body>
+</html>
